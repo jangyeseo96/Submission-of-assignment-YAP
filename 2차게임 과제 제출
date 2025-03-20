@@ -1,0 +1,128 @@
+import 'dart:io';
+import 'dart:math';
+
+//캐릭터 기본 클래스
+class Character {
+  String name;
+  int hp;
+  int attack;
+
+  Character(this.name, this.hp, this.attack);
+
+  bool isAlive() => hp > 0;
+}
+
+//플레이어 클래스
+class Player extends Character {
+  int level;
+  int exp;
+
+  Player(String name)
+      : level = 1,
+        exp = 0,
+        super(name, 100, 15);
+
+  void gainExp(int amount) {
+    exp += amount;
+    if (exp >= 100) {
+      levelUp();
+    }
+  }
+
+  void levelUp() {
+    level++;
+    exp = 0;
+    hp += 20;
+    attack += 5;
+    print('\n레벨 업! 현재 레벨: $level');
+  }
+
+  // 진행 데이터 저장
+  void save() {
+    File('player_data.txt').writeAsStringSync('$name,$level,$exp,$hp,$attack');
+  }
+
+  // 저장 데이터 불러오기
+  static Player? load() {
+    try {
+      var data = File('player_data.txt').readAsStringSync().split(',');
+      return Player(data[0])
+        ..level = int.parse(data[1])
+        ..exp = int.parse(data[2])
+        ..hp = int.parse(data[3])
+        ..attack = int.parse(data[4]);
+    } catch (e) {
+      return null;
+    }
+  }
+}
+
+// 몬스터 클래스 (랜덤 능력치)
+class Monster extends Character {
+  Monster(String name)
+      : super(name, Random().nextInt(30) + 20, Random().nextInt(10) + 5);
+}
+
+// 게임 실행 클래스
+class Game {
+  Player player;
+  Game(this.player);
+
+  void start() {
+    print("\n${player.name}의 모험이 시작됩니다!");
+    while (true) {
+      Monster monster = Monster("몬스터");
+      print("\n${monster.name} 등장! (HP: ${monster.hp}, 공격력: ${monster.attack})");
+
+      // 전투 루프
+      while (player.isAlive() && monster.isAlive()) {
+        print("\n[1] 공격하기   [2] 방어하기");
+        stdout.write("선택: ");
+        String? choice = stdin.readLineSync();
+
+        if (choice == '1') {
+          // 공격
+          monster.hp -= player.attack;
+          print("${player.name}의 공격! 몬스터 HP ${monster.hp} 남음!");
+        } else if (choice == '2') {
+          // 방어 (공격 무효)
+          print("${player.name}이(가) 방어 자세를 취했습니다! 피해 없음.");
+        }
+
+        // 몬스터 공격
+        if (monster.isAlive()) {
+          player.hp -= monster.attack;
+          print("몬스터의 반격! ${player.name} HP ${player.hp} 남음!");
+        }
+      }
+
+      // 전투 종료
+      if (player.isAlive()) {
+        print("\n승리! 경험치 +50");
+        player.gainExp(50);
+        player.save();
+      } else {
+        print("\n💀 패배... 게임 오버!");
+        break;
+      }
+
+      // 다음 전투 여부 확인
+      stdout.write("\n다음 몬스터와 싸우시겠습니까? (y/n): ");
+      String? next = stdin.readLineSync();
+      if (next?.toLowerCase() != 'y') break;
+    }
+  }
+}
+
+// 메인 실행
+void main() {
+  stdout.write("캐릭터 이름을 입력하세요: ");
+  String? name = stdin.readLineSync();
+
+  // 기존 데이터 불러오기 또는 새 캐릭터 생성
+  Player player = Player.load() ?? Player(name ?? "플레이어");
+
+  // 게임 시작
+  Game game = Game(player);
+  game.start();
+}
